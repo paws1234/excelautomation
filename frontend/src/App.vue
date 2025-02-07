@@ -57,8 +57,8 @@ export default {
         }
       })
       .then(response => {
-        // Construct the download URL based on the response's fileName
-        this.downloadUrl = "https://excelautomation-xy7r.onrender.com/uploads/" + response.data.fileName;
+        const processedFileName = `processed_${Date.now()}.xlsx`;
+        this.downloadUrl = `https://excelautomation-xy7r.onrender.com/uploads/${processedFileName}`;
         this.isUploading = false;
       })
       .catch(error => {
@@ -70,6 +70,7 @@ export default {
   }
 };
 </script>
+
 
 
 <style scoped>
