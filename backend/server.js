@@ -82,8 +82,8 @@ const scrapeImage = async (url) => {
         return finalValidImageUrls;
     } catch (error) {
         console.log(`❌ Failed to scrape ${url}: ${error.message}`);
-        //await browser.close();
-          await page.close();
+        await browser.close();
+          //await page.close();
         return [];
     }
 };
