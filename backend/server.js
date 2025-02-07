@@ -18,6 +18,7 @@ app.use(cors({
     allowedHeaders: ["Content-Type", "Authorization"], 
 }));
 
+
 app.use(express.json());
 
 cloudinary.config({
@@ -82,8 +83,8 @@ const scrapeImage = async (url) => {
         return finalValidImageUrls;
     } catch (error) {
         console.log(`❌ Failed to scrape ${url}: ${error.message}`);
-        //await browser.close();
-          await page.close();
+        await browser.close();
+          //await page.close();
         return [];
     }
 };
@@ -99,8 +100,9 @@ const uploadToCloudinary = async (filePath) => {
     }
 };
 
-
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.post("/upload", upload.single("file"), async (req, res) => {
+    
     if (!req.file) return res.status(400).json({ error: "No file uploaded!" });
 
     console.log("File uploaded:", req.file);
