@@ -57,7 +57,8 @@ export default {
         }
       })
       .then(response => {
-        this.downloadUrl = "https://excelautomation-xy7r.onrender.com/" + response.data.fileName;
+        // Construct the download URL based on the response's fileName
+        this.downloadUrl = "https://excelautomation-xy7r.onrender.com/uploads/" + response.data.fileName;
         this.isUploading = false;
       })
       .catch(error => {
@@ -69,6 +70,7 @@ export default {
   }
 };
 </script>
+
 
 <style scoped>
 .file-upload-container {
