@@ -94,6 +94,7 @@ const uploadToCloudinary = async (filePath) => {
     }
 };
 
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.post("/upload", upload.single("file"), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded!" });
