@@ -149,33 +149,44 @@ app.post("/upload", upload.single("file"), async (req, res) => {
                 newData.push(newRow);
             }
         } else {
-            // If no LINKS field is present, push the row as it is
             newData.push(data[i]);
         }
     }
 
-    // Convert JSON back to worksheet
     const newWorksheet = xlsx.utils.json_to_sheet(newData, { origin: "A1" });
 
-    // Keep the original format by merging it into the existing worksheet
     Object.keys(newWorksheet).forEach(cell => {
         if (!cell.startsWith("!")) {
             worksheet[cell] = newWorksheet[cell];
         }
     });
 
-    // Write the updated workbook back to a file
-    const outputFilePath = `uploads/processed_${Date.now()}.xlsx`;
-    xlsx.writeFile(workbook, outputFilePath);
+      const outputFilePath = `uploads/processed_${Date.now()}.xlsx`;
+    console.log(`⚡ Writing the workbook to ${outputFilePath}`);
 
-    fs.unlinkSync(filePath); // Delete the original uploaded file
+    xlsx.writeFile(workbook, outputFilePath );
+    console.log(`✅ File successfully written to ${outputFilePath}`);
 
-    // Send the processed Excel file as a response
-    res.download(outputFilePath, "processed.xlsx", () => {
-        fs.unlinkSync(outputFilePath); // Clean up after sending
+
+
+fs.unlink(filePath, (err) => {
+    if (err) {
+        console.error('Error deleting the original file:', err);
+    }
+});
+    
+res.download(outputFilePath, "processed.xlsx", () => {
+    console.log(`✅ File downloaded. Cleaning up...`);
+
+    fs.unlinkSync(outputFilePath, (err) => {
+        if (err) {
+            console.error('Error deleting the processed file:', err);
+        } else {
+            console.log(`🗑 Processed file ${outputFilePath} deleted after download.`);
+        }
     });
 });
-
+});
 
 
 
