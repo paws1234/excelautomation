@@ -12,12 +12,11 @@ const cloudinary = require("cloudinary").v2;
 const ProgressBar = require("progress");
 const upload = require('multer')({ dest: 'uploads/' });
 const app = express();
-const corsOptions = {
-    origin: "*", // Allows all origins
+app.use(cors({
+    origin: "*", 
     methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type"],
-};
-app.use(cors(corsOptions));
+    allowedHeaders: ["Content-Type", "Authorization"], 
+}));
 
 app.use(express.json());
 
