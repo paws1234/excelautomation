@@ -46,7 +46,7 @@ export default {
 
       this.isUploading = true;
 
-      axios.post("https://excelautomation-xy7r.onrender.com/upload?10", formData, {
+      axios.post("https://excelautomation-xy7r.onrender.com/upload?limit=3", formData, {
         headers: {
           "Content-Type": "multipart/form-data"
         },
@@ -57,7 +57,7 @@ export default {
         }
       })
       .then(response => {
-        this.downloadUrl = "http://localhost:5000/" + response.data.fileName;
+        this.downloadUrl = "https://excelautomation-xy7r.onrender.com/" + response.data.fileName;
         this.isUploading = false;
       })
       .catch(error => {
