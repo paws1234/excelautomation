@@ -149,31 +149,22 @@ app.post("/upload", upload.single("file"), async (req, res) => {
         }
     });
 
-    const outputFilePath = `uploads/processed_${Date.now()}.xlsx`;
+const outputFilePath = `uploads/processed_${Date.now()}.xlsx`;
     console.log(`⚡ Writing the workbook to ${outputFilePath}`);
 
-    xlsx.writeFile(workbook, outputFilePath );
+    xlsx.writeFile(workbook, outputFilePath);
     console.log(`✅ File successfully written to ${outputFilePath}`);
 
-
-
-fs.unlink(filePath, (err) => {
-    if (err) {
-        console.error('Error deleting the original file:', err);
-    }
-});
-    
-res.download(outputFilePath, "processed.xlsx", () => {
-    console.log(`✅ File downloaded. Cleaning up...`);
-
-    fs.unlinkSync(outputFilePath, (err) => {
+    // Delete the original uploaded file
+    fs.unlink(filePath, (err) => {
         if (err) {
-            console.error('Error deleting the processed file:', err);
-        } else {
-            console.log(`🗑 Processed file ${outputFilePath} deleted after download.`);
+            console.error('Error deleting the original file:', err);
         }
     });
-});
+
+    // Send the file path or filename back in the response
+    const processedFileName = outputFilePath.split('/').pop(); // Extract the file name
+    res.json({ fileName: processedFileName });
 });
 
 
