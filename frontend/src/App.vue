@@ -3,24 +3,20 @@
   <div class="file-upload-container">
     <h1>Upload and Process Excel File</h1>
 
-    <!-- Form to upload file -->
     <form @submit.prevent="handleFileUpload">
       <div class="file-input">
         <label for="file">Choose an Excel file:</label>
         <input type="file" id="file" ref="fileInput" accept=".xlsx" required />
       </div>
 
-      <!-- Upload Button -->
       <button type="submit" :disabled="isUploading">Upload and Process File</button>
     </form>
 
-    <!-- Progress Bar -->
     <div v-if="isUploading" class="progress-container">
       <label>Uploading...</label>
       <div class="progress" :style="{ width: uploadProgress + '%' }"></div>
     </div>
 
-    <!-- File Download Link -->
     <div v-if="downloadUrl" class="download-link">
       <a :href="downloadUrl" download="processed.xlsx" class="btn-download">Download Processed File</a>
     </div>
