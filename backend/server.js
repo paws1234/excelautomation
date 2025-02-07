@@ -50,20 +50,16 @@ const scrapeImage = async (url) => {
         console.log("Navigating to URL:", url);
         await page.goto(url, { waitUntil: "load", timeout: 60000 });
 
-        // Wait for images to be loaded
         await page.waitForSelector("img", { timeout: 10000 });
 
-        // Extract image URLs and filter for specific URLs matching the regex
         const imageUrls = await page.evaluate(() => {
             return Array.from(document.querySelectorAll("img"))
                 .map(img => img.src)
                 .filter(src => /https:\/\/xcimg\.szwego\.com\/.*\.(jpg|jpeg|png|gif)\?/.test(src)); // Filter by regex for specific image URLs
         });
 
-        // Get only the first 3 image URLs
         const firstThreeImageUrls = imageUrls.slice(0, 3);
 
-        // Filter out invalid image URLs (e.g., 404 errors)
         const validImageUrls = await Promise.all(firstThreeImageUrls.map(async (imageUrl) => {
             try {
                 const response = await axios.head(imageUrl);
@@ -74,7 +70,6 @@ const scrapeImage = async (url) => {
             }
         }));
 
-        // Remove any null values from the array
         const finalValidImageUrls = validImageUrls.filter(url => url !== null);
 
         console.log("Valid image URLs:", finalValidImageUrls);
@@ -106,17 +101,14 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     console.log("File uploaded:", req.file);
     const filePath = req.file.path;
 
-    // Read the workbook without converting to JSON (to retain format)
     const workbook = xlsx.readFile(filePath, { cellStyles: true });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
 
-    // Convert worksheet to JSON
     let data = xlsx.utils.sheet_to_json(worksheet, { defval: "" }); // Preserve empty cells
 
     console.log(`📦 Total links found: ${data.length}\n`);
 
-    // Get the processing limit from the query parameter (default to all links if not specified)
     const limit = parseInt(req.query.limit, 10) || data.length;
     console.log(`⚡ Processing ${limit} out of ${data.length} links...\n`);
 
@@ -128,54 +120,59 @@ app.post("/upload", upload.single("file"), async (req, res) => {
             const imageUrls = await scrapeImage(data[i].LINKS);
 
             if (imageUrls.length > 0) {
-                // Upload each image to Cloudinary and create a new row for each Cloudinary URL
                 const cloudinaryUrls = await Promise.all(imageUrls.map(async (imageUrl) => {
                     const cloudinaryUrl = await uploadToCloudinary(imageUrl);
                     return cloudinaryUrl ? cloudinaryUrl : 'Cloudinary Upload Failed';
                 }));
 
-                // Add Cloudinary URLs to the "Image Src" column for the first image
-                let newRow = { ...data[i], 'Image Src': cloudinaryUrls[0] }; // First URL in the row
+                let newRow = { ...data[i], 'Image Src': cloudinaryUrls[0] }; 
                 newData.push(newRow);
 
-                // Create new rows for any additional Cloudinary URLs
                 for (let j = 1; j < cloudinaryUrls.length; j++) {
                     let newRowForAdditionalImage = { ...data[i], 'Image Src': cloudinaryUrls[j] };
                     newData.push(newRowForAdditionalImage);
                 }
             } else {
-                // If no images found, push the row with an empty 'Image Src'
                 let newRow = { ...data[i], 'Image Src': 'No Image Found' };
                 newData.push(newRow);
             }
         } else {
-            // If no LINKS field is present, push the row as it is
             newData.push(data[i]);
         }
     }
 
-    // Convert JSON back to worksheet
     const newWorksheet = xlsx.utils.json_to_sheet(newData, { origin: "A1" });
 
-    // Keep the original format by merging it into the existing worksheet
     Object.keys(newWorksheet).forEach(cell => {
         if (!cell.startsWith("!")) {
             worksheet[cell] = newWorksheet[cell];
         }
     });
 
-    // Write the updated workbook back to a file
     const outputFilePath = `uploads/processed_${Date.now()}.xlsx`;
-    xlsx.writeFile(workbook, outputFilePath);
+    console.log(`⚡ Writing the workbook to ${outputFilePath}`);
 
-    fs.unlinkSync(filePath); // Delete the original uploaded file
+    xlsx.writeFile(workbook, outputFilePath );
+    console.log(`✅ File successfully written to ${outputFilePath}`);
 
-    // Send the processed Excel file as a response
-    res.download(outputFilePath, "processed.xlsx", () => {
-        fs.unlinkSync(outputFilePath); // Clean up after sending
+
+
+fs.unlink(filePath, (err) => {
+    if (err) {
+        console.error('Error deleting the original file:', err);
+    }
+});
+res.download(outputFilePath, "processed.xlsx", () => {
+    console.log(`✅ File downloaded. Cleaning up...`);
+
+    fs.unlinkSync(outputFilePath, (err) => {
+        if (err) {
+            console.error('Error deleting the processed file:', err);
+        } else {
+            console.log(`🗑 Processed file ${outputFilePath} deleted after download.`);
+        }
     });
 });
-
 
 
 
