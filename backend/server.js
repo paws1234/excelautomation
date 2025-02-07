@@ -162,6 +162,7 @@ fs.unlink(filePath, (err) => {
         console.error('Error deleting the original file:', err);
     }
 });
+    
 res.download(outputFilePath, "processed.xlsx", () => {
     console.log(`✅ File downloaded. Cleaning up...`);
 
@@ -173,7 +174,7 @@ res.download(outputFilePath, "processed.xlsx", () => {
         }
     });
 });
-
+});
 
 
 
