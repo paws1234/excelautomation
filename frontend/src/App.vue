@@ -46,7 +46,7 @@ export default {
 
       this.isUploading = true;
 
-      axios.post("http://localhost:5000/upload?", formData, {
+      axios.post("https://excelautomation-xy7r.onrender.com/upload?", formData, {
         headers: {
           "Content-Type": "multipart/form-data"
         },
@@ -59,7 +59,7 @@ export default {
       .then(response => {
 
   const processedFileName = response.data.fileName;
-  this.downloadUrl = `http://localhost:5000/uploads/${processedFileName}`;
+  this.downloadUrl = `https://excelautomation-xy7r.onrender.com/uploads/${processedFileName}`;
   this.isUploading = false;
 })
       .catch(error => {
