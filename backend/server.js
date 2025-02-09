@@ -31,10 +31,8 @@ const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 
 puppeteer.use(StealthPlugin());
 
-const puppeteer = require("puppeteer");
-const axios = require("axios");
 
-let browser; // Singleton browser instance
+let browser; 
 
 const getBrowserInstance = async () => {
     if (!browser) {
