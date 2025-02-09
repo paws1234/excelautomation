@@ -57,11 +57,11 @@ export default {
         }
       })
       .then(response => {
+
   const processedFileName = response.data.fileName;
   this.downloadUrl = `http://localhost:5000/uploads/${processedFileName}`;
   this.isUploading = false;
 })
-
       .catch(error => {
         // eslint-disable-next-line no-console
         console.error("Error uploading file:", error);
@@ -71,6 +71,8 @@ export default {
   }
 };
 </script>
+
+
 
 <style scoped>
 .file-upload-container {

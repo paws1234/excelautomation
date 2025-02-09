@@ -18,6 +18,7 @@ app.use(cors({
     allowedHeaders: ["Content-Type", "Authorization"], 
 }));
 
+
 app.use(express.json());
 
 cloudinary.config({
@@ -97,6 +98,7 @@ const uploadToCloudinary = async (filePath) => {
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.post("/upload", upload.single("file"), async (req, res) => {
+    
     if (!req.file) return res.status(400).json({ error: "No file uploaded!" });
 
     console.log("File uploaded:", req.file);
@@ -254,6 +256,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 
     const processedFileName = outputFilePath.split('/').pop(); 
     res.json({ fileName: processedFileName });
+
 });
 */
 
