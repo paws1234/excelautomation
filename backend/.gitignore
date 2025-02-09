@@ -13,7 +13,7 @@ dist/
 build/
 output/
 .tmp/
-
+puppeteer.config.js
 # Environment files
 .env
 .env.local
