@@ -107,6 +107,86 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     const worksheet = workbook.Sheets[sheetName];
 
     let data = xlsx.utils.sheet_to_json(worksheet, { defval: "" }); 
+    console.log(`📦 Total links found: ${data.length}\n`);
+
+    const limit = parseInt(req.query.limit, 10) || data.length;
+
+    let newData = [];
+
+    // Process links sequentially
+    for (const [index, row] of data.entries()) {
+        if (!row.LINKS || !row.LINKS.trim()) {
+            console.log(`❌ Empty or invalid link found at row ${index + 1}`);
+            continue;
+        }
+
+        console.log(`🔍 Processing link ${index + 1}: ${row.LINKS}`);
+
+        try {
+            const imageUrls = await scrapeImage(row.LINKS);
+
+            if (imageUrls.length > 0) {
+                const cloudinaryUrls = [];
+                for (let imageUrl of imageUrls) {
+                    const cloudinaryUrl = await uploadToCloudinary(imageUrl);
+                    cloudinaryUrls.push(cloudinaryUrl ? cloudinaryUrl : 'Cloudinary Upload Failed');
+                }
+
+                let newRow = { ...row, 'Image Src': cloudinaryUrls[0] };
+                newData.push(newRow);
+
+                for (let j = 1; j < cloudinaryUrls.length; j++) {
+                    let newRowForAdditionalImage = { ...row, 'Image Src': cloudinaryUrls[j] };
+                    newData.push(newRowForAdditionalImage);
+                }
+            } else {
+                let newRow = { ...row, 'Image Src': 'No Image Found' };
+                newData.push(newRow);
+            }
+        } catch (err) {
+            console.error(`Error processing link at row ${index + 1}:`, err);
+            let newRow = { ...row, 'Image Src': 'Error occurred' };
+            newData.push(newRow);
+        }
+    }
+
+    // Writing updated data to the new worksheet
+    const newWorksheet = xlsx.utils.json_to_sheet(newData, { origin: "A1" });
+
+    Object.keys(newWorksheet).forEach(cell => {
+        if (!cell.startsWith("!")) {
+            worksheet[cell] = newWorksheet[cell];
+        }
+    });
+
+    const outputFilePath = `uploads/processed_${Date.now()}.xlsx`;
+    console.log(`⚡ Writing the workbook to ${outputFilePath}`);
+
+    xlsx.writeFile(workbook, outputFilePath);
+    console.log(`✅ File successfully written to ${outputFilePath}`);
+
+    // Delete the uploaded file after processing
+    fs.unlink(filePath, (err) => {
+        if (err) {
+            console.error('Error deleting the original file:', err);
+        }
+    });
+
+    const processedFileName = outputFilePath.split('/').pop(); 
+    res.json({ fileName: processedFileName });
+});
+//will keep this code commented out for now because the code above fixes the issue of limited ram resources on render server
+/*app.post("/upload", upload.single("file"), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded!" });
+
+    console.log("File uploaded:", req.file);
+    const filePath = req.file.path;
+
+    const workbook = xlsx.readFile(filePath, { cellStyles: true });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+
+    let data = xlsx.utils.sheet_to_json(worksheet, { defval: "" }); 
     //console.log('Parsed data:', data); 
     console.log(`📦 Total links found: ${data.length}\n`);
 
@@ -175,7 +255,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     const processedFileName = outputFilePath.split('/').pop(); 
     res.json({ fileName: processedFileName });
 });
-
+*/
 
 
 
