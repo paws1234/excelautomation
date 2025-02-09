@@ -55,7 +55,7 @@ const scrapeImage = async (url) => {
         const imageUrls = await page.evaluate(() => {
             return Array.from(document.querySelectorAll("img"))
                 .map(img => img.src)
-                .filter(src => /https:\/\/xcimg\.szwego\.com\/.*\.(jpg|jpeg|png|gif)\?/.test(src)); // Filter by regex for specific image URLs
+                .filter(src => /https:\/\/xcimg\.szwego\.com\/.*\.(jpg|jpeg|png|gif)\?/.test(src)); 
         });
 
         const firstThreeImageUrls = imageUrls.slice(0, 3);
@@ -106,19 +106,25 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
 
-    let data = xlsx.utils.sheet_to_json(worksheet, { defval: "" }); // Preserve empty cells
-
+    let data = xlsx.utils.sheet_to_json(worksheet, { defval: "" }); 
+    //console.log('Parsed data:', data); 
     console.log(`📦 Total links found: ${data.length}\n`);
 
     const limit = parseInt(req.query.limit, 10) || data.length;
-    console.log(`⚡ Processing ${limit} out of ${data.length} links...\n`);
+    //console.log(`⚡ Processing ${limit} out of ${data.length} links...\n`);
 
-    let newData = []; // New array to store processed rows
+    let newData = [];
 
-    for (let i = 0; i < Math.min(limit, data.length); i++) {
-        if (data[i].LINKS) {
-            console.log(`🔍 Processing: ${data[i].LINKS}`);
-            const imageUrls = await scrapeImage(data[i].LINKS);
+    const promises = data.slice().map(async (row, index) => {
+        if (!row.LINKS || !row.LINKS.trim()) {
+            //console.log(`❌ Empty or invalid link found at row ${index + 1}`);
+            return;  
+        }
+
+        console.log(`🔍 Processing link ${index + 1}: ${row.LINKS}`);
+
+        try {
+            const imageUrls = await scrapeImage(row.LINKS);
 
             if (imageUrls.length > 0) {
                 const cloudinaryUrls = await Promise.all(imageUrls.map(async (imageUrl) => {
@@ -126,21 +132,25 @@ app.post("/upload", upload.single("file"), async (req, res) => {
                     return cloudinaryUrl ? cloudinaryUrl : 'Cloudinary Upload Failed';
                 }));
 
-                let newRow = { ...data[i], 'Image Src': cloudinaryUrls[0] }; 
+                let newRow = { ...row, 'Image Src': cloudinaryUrls[0] };
                 newData.push(newRow);
 
                 for (let j = 1; j < cloudinaryUrls.length; j++) {
-                    let newRowForAdditionalImage = { ...data[i], 'Image Src': cloudinaryUrls[j] };
+                    let newRowForAdditionalImage = { ...row, 'Image Src': cloudinaryUrls[j] };
                     newData.push(newRowForAdditionalImage);
                 }
             } else {
-                let newRow = { ...data[i], 'Image Src': 'No Image Found' };
+                let newRow = { ...row, 'Image Src': 'No Image Found' };
                 newData.push(newRow);
             }
-        } else {
-            newData.push(data[i]);
+        } catch (err) {
+            console.error(`Error processing link at row ${index + 1}:`, err);
+            let newRow = { ...row, 'Image Src': 'Error occurred' };
+            newData.push(newRow);
         }
-    }
+    });
+
+    await Promise.all(promises);
 
     const newWorksheet = xlsx.utils.json_to_sheet(newData, { origin: "A1" });
 
@@ -150,23 +160,22 @@ app.post("/upload", upload.single("file"), async (req, res) => {
         }
     });
 
-const outputFilePath = `uploads/processed_${Date.now()}.xlsx`;
+    const outputFilePath = `uploads/processed_${Date.now()}.xlsx`;
     console.log(`⚡ Writing the workbook to ${outputFilePath}`);
 
     xlsx.writeFile(workbook, outputFilePath);
     console.log(`✅ File successfully written to ${outputFilePath}`);
 
-    // Delete the original uploaded file
     fs.unlink(filePath, (err) => {
         if (err) {
             console.error('Error deleting the original file:', err);
         }
     });
 
-    // Send the file path or filename back in the response
-    const processedFileName = outputFilePath.split('/').pop(); // Extract the file name
+    const processedFileName = outputFilePath.split('/').pop(); 
     res.json({ fileName: processedFileName });
 });
+
 
 
 
