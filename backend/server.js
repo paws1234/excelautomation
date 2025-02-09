@@ -31,58 +31,68 @@ const StealthPlugin = require("puppeteer-extra-plugin-stealth");
 
 puppeteer.use(StealthPlugin());
 
+const puppeteer = require("puppeteer");
+const axios = require("axios");
+
+let browser; // Singleton browser instance
+
+const getBrowserInstance = async () => {
+    if (!browser) {
+        browser = await puppeteer.launch({
+            headless: "new",
+            args: [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-accelerated-2d-canvas",
+                "--disable-gpu",
+            ],
+        });
+    }
+    return browser;
+};
+
 const scrapeImage = async (url) => {
-    console.log("Launching Puppeteer...");
+    console.log("🔍 Processing:", url);
 
-    const browser = await puppeteer.launch({
-        headless: "new", 
-        args: [
-            "--no-sandbox",
-            "--disable-setuid-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-accelerated-2d-canvas",
-            "--disable-gpu"
-        ],
-    });
-
+    const browser = await getBrowserInstance();
     const page = await browser.newPage();
 
     try {
-        console.log("Navigating to URL:", url);
-        await page.goto(url, { waitUntil: "load", timeout: 60000 });
-
-        await page.waitForSelector("img", { timeout: 10000 });
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+        await page.waitForSelector("img", { timeout: 5000 });
 
         const imageUrls = await page.evaluate(() => {
             return Array.from(document.querySelectorAll("img"))
-                .map(img => img.src)
-                .filter(src => /https:\/\/xcimg\.szwego\.com\/.*\.(jpg|jpeg|png|gif)\?/.test(src)); 
+                .map((img) => img.src)
+                .filter((src) => /https:\/\/xcimg\.szwego\.com\/.*\.(jpg|jpeg|png|gif)\?/.test(src))
+                .slice(0, 3); // Get first 3 valid URLs
         });
 
-        const firstThreeImageUrls = imageUrls.slice(0, 3);
+        console.log(`📸 Found ${imageUrls.length} images`);
 
-        const validImageUrls = await Promise.all(firstThreeImageUrls.map(async (imageUrl) => {
-            try {
-                const response = await axios.head(imageUrl);
-                return response.status === 200 ? imageUrl : null;
-            } catch (error) {
-                console.log(`❌ Invalid image URL: ${imageUrl}`);
-                return null;
-            }
-        }));
+        // Validate image URLs in parallel
+        const validImageUrls = (await Promise.all(
+            imageUrls.map(async (imageUrl) => {
+                try {
+                    const response = await axios.head(imageUrl, { timeout: 5000 });
+                    return response.status === 200 ? imageUrl : null;
+                } catch {
+                    return null;
+                }
+            })
+        )).filter(Boolean); // Remove null values
 
-        const finalValidImageUrls = validImageUrls.filter(url => url !== null);
-
-        console.log("Valid image URLs:", finalValidImageUrls);
-        await browser.close();
-        return finalValidImageUrls;
+        console.log("✅ Valid image URLs:", validImageUrls);
+        await page.close();
+        return validImageUrls;
     } catch (error) {
-        console.log(`❌ Failed to scrape ${url}: ${error.message}`);
-        await browser.close();
-          //await page.close();
+        console.error(`❌ Error processing ${url}: ${error.message}`);
+        await page.close();
         return [];
     }
 };
+
 
 const uploadToCloudinary = async (filePath) => {
     try {
@@ -97,7 +107,7 @@ const uploadToCloudinary = async (filePath) => {
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.post("/upload", upload.single("file"), async (req, res) => {
+/*app.post("/upload", upload.single("file"), async (req, res) => {
     
     if (!req.file) return res.status(400).json({ error: "No file uploaded!" });
 
@@ -176,9 +186,9 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 
     const processedFileName = outputFilePath.split('/').pop(); 
     res.json({ fileName: processedFileName });
-});
+});*/
 //will keep this code commented out for now because the code above fixes the issue of limited ram resources on render server
-/*app.post("/upload", upload.single("file"), async (req, res) => {
+app.post("/upload", upload.single("file"), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded!" });
 
     console.log("File uploaded:", req.file);
@@ -258,7 +268,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     res.json({ fileName: processedFileName });
 
 });
-*/
+
 
 
 
