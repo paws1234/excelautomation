@@ -46,7 +46,7 @@ export default {
 
       this.isUploading = true;
 
-      axios.post("https://excelautomation-xy7r.onrender.com/upload?limit=3", formData, {
+      axios.post("https://excelautomation-xy7r.onrender.com/upload?", formData, {
         headers: {
           "Content-Type": "multipart/form-data"
         },
@@ -57,10 +57,11 @@ export default {
         }
       })
       .then(response => {
-        const processedFileName = `processed_${Date.now()}.xlsx`;
-        this.downloadUrl = `https://excelautomation-xy7r.onrender.com/uploads/${processedFileName}`;
-        this.isUploading = false;
-      })
+
+  const processedFileName = response.data.fileName;
+  this.downloadUrl = `https://excelautomation-xy7r.onrender.com/uploads/${processedFileName}`;
+  this.isUploading = false;
+})
       .catch(error => {
         // eslint-disable-next-line no-console
         console.error("Error uploading file:", error);
