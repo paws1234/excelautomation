@@ -100,15 +100,29 @@ page.on('request', (request) => {
     { timeout: 10000 }
 );*/
         const imageUrls = await page.evaluate(() => {
-            return Array.from(document.querySelectorAll("img"))
-                .map((img) => img.src)
-                .filter((src) => /https:\/\/xcimg\.szwego\.com\/.*\.(jpg|jpeg|png|gif)\?/.test(src))
-                .slice(0, 3); // Get first 3 valid URLs
-        });
+    const urlPattern = /https:\/\/xcimg\.szwego\.com\/.*\.(jpg|jpeg|png|gif)\?/;
+    const urls = [];
+
+    const elements = document.querySelectorAll('*'); // Select all elements
+
+    elements.forEach((element) => {
+        if (element.src && urlPattern.test(element.src)) {
+            urls.push(element.src);
+        }
+        
+        if (element.href && urlPattern.test(element.href)) {
+            urls.push(element.href);
+        }
+    });
+
+    return urls.slice(0, 3);
+});
+
+console.log("Found image URLs:", imageUrls);
+
 
         console.log(`📸 Found ${imageUrls.length} images`);
 
-        // Validate image URLs in parallel
         const validImageUrls = (await Promise.all(
             imageUrls.map(async (imageUrl) => {
                 try {
@@ -118,7 +132,7 @@ page.on('request', (request) => {
                     return null;
                 }
             })
-        )).filter(Boolean); // Remove null values
+        )).filter(Boolean); 
 
         console.log("✅ Valid image URLs:", validImageUrls);
         await page.close();
