@@ -50,6 +50,25 @@ const getBrowserInstance = async () => {
     return browser;
 };
 
+const scrollPage = async (page) => {
+    await page.evaluate(async () => {
+        const distance = 1000;  
+        const delay = 2000;  
+
+        while (true) {
+            window.scrollBy(0, distance);  
+            await new Promise((resolve) => setTimeout(resolve, delay)); 
+
+            const scrollHeight = document.documentElement.scrollHeight;
+            const currentScroll = window.scrollY + window.innerHeight;
+
+            if (currentScroll >= scrollHeight) {
+                break;  
+            }
+        }
+    });
+};
+
 const scrapeImage = async (url) => {
     console.log("🔍 Processing:", url);
 
@@ -57,8 +76,9 @@ const scrapeImage = async (url) => {
     const page = await browser.newPage();
 
     try {
-        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
-        await page.waitForSelector("img", { timeout: 5000 });
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 100000 });
+                await scrollPage(page);
+        await page.waitForSelector("img", { timeout: 10000 });
 
         const imageUrls = await page.evaluate(() => {
             return Array.from(document.querySelectorAll("img"))
