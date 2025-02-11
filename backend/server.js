@@ -105,7 +105,7 @@ const uploadToCloudinary = async (filePath) => {
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-/*app.post("/upload", upload.single("file"), async (req, res) => {
+app.post("/upload", upload.single("file"), async (req, res) => {
     
     if (!req.file) return res.status(400).json({ error: "No file uploaded!" });
 
@@ -184,9 +184,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
     const processedFileName = outputFilePath.split('/').pop(); 
     res.json({ fileName: processedFileName });
-});*/
+});
 //will keep this code commented out for now because the code above fixes the issue of limited ram resources on render server
-app.post("/upload", upload.single("file"), async (req, res) => {
+/*app.post("/upload", upload.single("file"), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: "No file uploaded!" });
 
     console.log("File uploaded:", req.file);
@@ -266,7 +266,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     res.json({ fileName: processedFileName });
 
 });
-
+*/
 
 
 
