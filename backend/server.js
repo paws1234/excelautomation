@@ -99,29 +99,37 @@ page.on('request', (request) => {
     'document.querySelectorAll("img[src*=\'xcimg.szwego.com\']").length > 0', 
     { timeout: 10000 }
 );*/
+  await page.waitForFunction(
+            'Array.from(document.querySelectorAll("*")).some(element => (' +
+            'element.src && element.src.includes("xcimg.szwego.com")) || ' +
+            '(element.href && element.href.includes("xcimg.szwego.com")));',
+            { timeout: 10000 }
+        );
+
+        // Extract all URLs (src, href) matching the pattern
         const imageUrls = await page.evaluate(() => {
-    const urlPattern = /https:\/\/xcimg\.szwego\.com\/.*\.(jpg|jpeg|png|gif)\?/;
-    const urls = [];
+            const urlPattern = /https:\/\/xcimg\.szwego\.com\/.*\.(jpg|jpeg|png|gif)\?imageMogr2/;
+            const urls = [];
 
-    const elements = document.querySelectorAll('*'); // Select all elements
+            const elements = document.querySelectorAll('*');
 
-    elements.forEach((element) => {
-        if (element.src && urlPattern.test(element.src)) {
-            urls.push(element.src);
-        }
-        
-        if (element.href && urlPattern.test(element.href)) {
-            urls.push(element.href);
-        }
-    });
+            elements.forEach((element) => {
+                if (element.src && urlPattern.test(element.src)) {
+                    urls.push(element.src);
+                }
+                
+                if (element.href && urlPattern.test(element.href)) {
+                    urls.push(element.href);
+                }
+            });
 
-    return urls.slice(0, 3);
-});
+            // Return first 3 valid URLs
+            return urls.slice(0, 3);
+        });
 
-console.log("Found image URLs:", imageUrls);
-
-
-        console.log(`📸 Found ${imageUrls.length} images`);
+        console.log("✅ Found image URLs:", imageUrls);
+        await page.close();
+        return imageUrls;
 
         const validImageUrls = (await Promise.all(
             imageUrls.map(async (imageUrl) => {
