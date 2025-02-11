@@ -78,18 +78,27 @@ const scrapeImage = async (url) => {
     try {
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 100000 });
                 await scrollPage(page);
+        await page.setRequestInterception(true);
+
+page.on('request', (request) => {
+    if (request.url().includes("xcimg.szwego.com")) {
+        console.log("✅ Found image URL:", request.url());
+    }
+    request.continue();
+});
         //await page.waitForSelector("img", { timeout: 10000 });
        /*await page.waitForFunction(
     'Array.from(document.querySelectorAll("img")).some(img => img.src && img.src.includes("xcimg.szwego.com"))',
     { timeout: 10000 }
 );*/
-      await page.waitForFunction(
+      /*await page.waitForFunction(
     'document.body.innerHTML.includes("xcimg.szwego.com")', 
     { timeout: 10000 }
-);
-
-
-
+);*/
+        /*await page.waitForFunction(
+    'document.querySelectorAll("img[src*=\'xcimg.szwego.com\']").length > 0', 
+    { timeout: 10000 }
+);*/
         const imageUrls = await page.evaluate(() => {
             return Array.from(document.querySelectorAll("img"))
                 .map((img) => img.src)
