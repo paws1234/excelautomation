@@ -99,58 +99,55 @@ page.on('request', (request) => {
     'document.querySelectorAll("img[src*=\'xcimg.szwego.com\']").length > 0', 
     { timeout: 10000 }
 );*/
-  await page.waitForFunction(
-            'Array.from(document.querySelectorAll("*")).some(element => (' +
-            'element.src && element.src.includes("xcimg.szwego.com")) || ' +
-            '(element.href && element.href.includes("xcimg.szwego.com")));',
-            { timeout: 10000 }
-        );
+   await page.waitForFunction(
+        'Array.from(document.querySelectorAll("*")).some(element => (' +
+        'element.src && element.src.includes("xcimg.szwego.com")) || ' +
+        '(element.href && element.href.includes("xcimg.szwego.com")));',
+        { timeout: 10000 }
+    );
 
-        // Extract all URLs (src, href) matching the pattern
-        const imageUrls = await page.evaluate(() => {
-            const urlPattern = /https:\/\/xcimg\.szwego\.com\/.*\.(jpg|jpeg|png|gif)\?imageMogr2/;
-            const urls = [];
+    // Extract all URLs (src, href) matching the pattern
+    const imageUrls = await page.evaluate(() => {
+        const urlPattern = /https:\/\/xcimg\.szwego\.com\/.*\.(jpg|jpeg|png|gif)\?imageMogr2/;
+        const urls = [];
 
-            const elements = document.querySelectorAll('*');
+        document.querySelectorAll('*').forEach((element) => {
+            if (element.src && urlPattern.test(element.src)) {
+                urls.push(element.src);
+            }
 
-            elements.forEach((element) => {
-                if (element.src && urlPattern.test(element.src)) {
-                    urls.push(element.src);
-                }
-                
-                if (element.href && urlPattern.test(element.href)) {
-                    urls.push(element.href);
-                }
-            });
-
-            // Return first 3 valid URLs
-            return urls.slice(0, 3);
+            if (element.href && urlPattern.test(element.href)) {
+                urls.push(element.href);
+            }
         });
 
-        console.log("✅ Found image URLs:", imageUrls);
-        await page.close();
-        return imageUrls;
+        // Return first 3 valid URLs
+        return urls.slice(0, 3);
+    });
 
-        const validImageUrls = (await Promise.all(
-            imageUrls.map(async (imageUrl) => {
-                try {
-                    const response = await axios.head(imageUrl, { timeout: 5000 });
-                    return response.status === 200 ? imageUrl : null;
-                } catch {
-                    return null;
-                }
-            })
-        )).filter(Boolean); 
+    console.log("✅ Found image URLs:", imageUrls);
 
-        console.log("✅ Valid image URLs:", validImageUrls);
-        await page.close();
-        return validImageUrls;
-    } catch (error) {
-        console.error(`❌ Error processing ${url}: ${error.message}`);
-        await page.close();
-        return [];
-    }
-};
+    // Validate the URLs by checking if they return a 200 response
+    const validImageUrls = (await Promise.all(
+        imageUrls.map(async (imageUrl) => {
+            try {
+                const response = await axios.head(imageUrl, { timeout: 5000 });
+                return response.status === 200 ? imageUrl : null;
+            } catch {
+                return null;
+            }
+        })
+    )).filter(Boolean);
+
+    console.log("✅ Valid image URLs:", validImageUrls);
+
+    await page.close();
+    return validImageUrls;
+} catch (error) {
+    console.error(`❌ Error processing ${url}: ${error.message}`);
+    await page.close();
+    return [];
+}
 
 
 const uploadToCloudinary = async (filePath) => {
