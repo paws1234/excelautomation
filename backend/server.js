@@ -149,7 +149,7 @@ page.on('request', (request) => {
     return [];
 }
 
-
+};
 const uploadToCloudinary = async (filePath) => {
     try {
         const result = await cloudinary.uploader.upload(filePath, { folder: "scraped_images" });
