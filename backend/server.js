@@ -77,79 +77,72 @@ const scrapeImage = async (url) => {
 
     try {
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 100000 });
-                await scrollPage(page);
+
+        if (typeof scrollPage === "function") {
+            await scrollPage(page);
+        }
+
         await page.setRequestInterception(true);
 
-page.on('request', (request) => {
-    if (request.url().includes("xcimg.szwego.com")) {
-        console.log("✅ Found image URL:", request.url());
-    }
-    request.continue();
-});
-        //await page.waitForSelector("img", { timeout: 10000 });
-       /*await page.waitForFunction(
-    'Array.from(document.querySelectorAll("img")).some(img => img.src && img.src.includes("xcimg.szwego.com"))',
-    { timeout: 10000 }
-);*/
-      /*await page.waitForFunction(
-    'document.body.innerHTML.includes("xcimg.szwego.com")', 
-    { timeout: 10000 }
-);*/
-        /*await page.waitForFunction(
-    'document.querySelectorAll("img[src*=\'xcimg.szwego.com\']").length > 0', 
-    { timeout: 10000 }
-);*/
-   await page.waitForFunction(
-        'Array.from(document.querySelectorAll("*")).some(element => (' +
-        'element.src && element.src.includes("xcimg.szwego.com")) || ' +
-        '(element.href && element.href.includes("xcimg.szwego.com")));',
-        { timeout: 10000 }
-    );
-
-    // Extract all URLs (src, href) matching the pattern
-    const imageUrls = await page.evaluate(() => {
-        const urlPattern = /https:\/\/xcimg\.szwego\.com\/.*\.(jpg|jpeg|png|gif)\?imageMogr2/;
-        const urls = [];
-
-        document.querySelectorAll('*').forEach((element) => {
-            if (element.src && urlPattern.test(element.src)) {
-                urls.push(element.src);
+        page.on("request", (request) => {
+            if (request.url().includes("xcimg.szwego.com")) {
+                console.log("✅ Found image URL:", request.url());
             }
-
-            if (element.href && urlPattern.test(element.href)) {
-                urls.push(element.href);
-            }
+            request.continue();
         });
 
-        // Return first 3 valid URLs
-        return urls.slice(0, 3);
-    });
+        await page.waitForFunction(
+            'Array.from(document.querySelectorAll("*")).some(element => (' +
+            'element.src && element.src.includes("xcimg.szwego.com")) || ' +
+            '(element.href && element.href.includes("xcimg.szwego.com")));',
+            { timeout: 10000 }
+        );
 
-    console.log("✅ Found image URLs:", imageUrls);
+        const imageUrls = await page.evaluate(() => {
+            const urlPattern = /https:\/\/xcimg\.szwego\.com\/.*\.(jpg|jpeg|png|gif)\?imageMogr2/;
+            const urls = [];
 
-    // Validate the URLs by checking if they return a 200 response
-    const validImageUrls = (await Promise.all(
-        imageUrls.map(async (imageUrl) => {
-            try {
-                const response = await axios.head(imageUrl, { timeout: 5000 });
-                return response.status === 200 ? imageUrl : null;
-            } catch {
-                return null;
-            }
-        })
-    )).filter(Boolean);
+            document.querySelectorAll("*").forEach((element) => {
+                if (element.src && urlPattern.test(element.src)) {
+                    urls.push(element.src);
+                }
+                if (element.href && urlPattern.test(element.href)) {
+                    urls.push(element.href);
+                }
+            });
 
-    console.log("✅ Valid image URLs:", validImageUrls);
+            return urls.slice(0, 3);
+        });
 
-    await page.close();
-    return validImageUrls;
-} catch (error) {
-    console.error(`❌ Error processing ${url}: ${error.message}`);
-    await page.close();
-    return [];
-}
+        console.log("✅ Found image URLs:", imageUrls);
 
+        const validImageUrls = (await Promise.all(
+            imageUrls.map(async (imageUrl) => {
+                try {
+                    const response = await axios.head(imageUrl, { timeout: 5000 });
+                    return response.status === 200 ? imageUrl : null;
+                } catch {
+                    return null;
+                }
+            })
+        )).filter(Boolean);
+
+        console.log("✅ Valid image URLs:", validImageUrls);
+
+        await page.close();
+        await browser.close(); // Close the browser after execution
+
+        return validImageUrls;
+    } catch (error) {
+        console.error(`❌ Error processing ${url}: ${error.message}`);
+
+        await page.close();
+        await browser.close(); // Ensure the browser is closed in case of an error
+
+        return [];
+    }
 };
+
 const uploadToCloudinary = async (filePath) => {
     try {
         const result = await cloudinary.uploader.upload(filePath, { folder: "scraped_images" });
