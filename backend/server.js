@@ -79,14 +79,14 @@ const scrapeImage = async (url) => {
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 100000 });
                 await scrollPage(page);
         //await page.waitForSelector("img", { timeout: 10000 });
-       await page.waitForFunction(
+       /*await page.waitForFunction(
     'Array.from(document.querySelectorAll("img")).some(img => img.src && img.src.includes("xcimg.szwego.com"))',
     { timeout: 10000 }
-);
-    /*    await page.waitForFunction(
+);*/
+      await page.waitForFunction(
     'document.body.innerHTML.includes("xcimg.szwego.com")', 
     { timeout: 10000 }
-);*/
+);
 
 
 
