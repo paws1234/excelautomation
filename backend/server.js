@@ -57,7 +57,7 @@ const scrapeImage = async (url) => {
     const page = await browser.newPage();
 
     try {
-        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
         await page.waitForSelector("img", { timeout: 5000 });
 
         const imageUrls = await page.evaluate(() => {
