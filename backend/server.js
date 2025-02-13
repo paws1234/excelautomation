@@ -32,37 +32,36 @@ const getBrowserInstance = async () => {
     }
     return browser;
 };
-
-const scrapeAllText = async (url) => {
-    console.log("🔍 Scraping all text content from:", url);
-
+  const divSelector = ".index-module_foldText_TFDUn .index-module_text_HePJ3 .index-module_ellipsisText_pYRbE .can-select.index-module_sourceTitle_TuTtw";
+const scrapeDivText = async (url, divSelector) => {
+    console.log("🔍 Scraping all text content from div:", divSelector, "at", url);
+    
     const browser = await getBrowserInstance();
     const page = await browser.newPage();
 
     try {
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 100000 });
+        await page.waitForSelector(divSelector, { timeout: 10000 });
 
-        await page.waitForSelector("body", { timeout: 10000 });
+        const divText = await page.evaluate((selector) => {
+            const targetDiv = document.querySelector(selector);
+            return targetDiv ? targetDiv.innerText.replace(/\s+/g, ' ').trim() : null;
+        }, divSelector);
 
-        const allText = await page.evaluate(() => {
-            return document.body.innerText; 
-        });
-
-        console.log("✅ Extracted all text content:", allText.substring(0, 200)); 
-
-        await page.close();
-        await browser.close(); 
-
-        return allText;
-    } catch (error) {
-        console.error(`❌ Error scraping ${url}: ${error.message}`);
+        console.log("✅ Extracted text content:", divText ? divText.substring(0, 200) : "No text found");
 
         await page.close();
         await browser.close();
 
+        return divText;
+    } catch (error) {
+        console.error(`❌ Error scraping ${url}: ${error.message}`);
+        await page.close();
+        await browser.close();
         return null;
     }
 };
+
 
 app.post("/scrape", async (req, res) => {
     const { url } = req.body;
