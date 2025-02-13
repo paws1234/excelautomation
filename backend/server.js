@@ -50,7 +50,7 @@ const scrapeAllText = async (url) => {
         page = await browser.newPage();
 
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 100000 });
-        await page.waitForSelector(divSelector, { timeout: 10000 });
+        await page.waitForSelector(divSelector, { timeout: 1000000 });
 
         const divText = await page.evaluate((selector) => {
             const targetDiv = document.querySelector(selector);
