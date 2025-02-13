@@ -33,7 +33,7 @@ const getBrowserInstance = async () => {
     return browser;
 };
   const divSelector = ".index-module_foldText_TFDUn .index-module_text_HePJ3 .index-module_ellipsisText_pYRbE .can-select.index-module_sourceTitle_TuTtw";
-const scrapeDivText = async (url, divSelector) => {
+const  scrapeAllText = async (url, divSelector) => {
     console.log("🔍 Scraping all text content from div:", divSelector, "at", url);
     
     const browser = await getBrowserInstance();
