@@ -32,9 +32,14 @@ const getBrowserInstance = async () => {
     }
     return browser;
 };
-  const divSelector = ".index-module_foldText_TFDUn .index-module_text_HePJ3 .index-module_ellipsisText_pYRbE .can-select.index-module_sourceTitle_TuTtw";
-const  scrapeAllText = async (url, divSelector) => {
+  const scrapeDivText = async (url) => {
+    const divSelector = ".index-module_foldText_TFDUn .index-module_text_HePJ3 .index-module_ellipsisText_pYRbE .can-select.index-module_sourceTitle_TuTtw";
     console.log("🔍 Scraping all text content from div:", divSelector, "at", url);
+    
+    if (typeof url !== "string" || !url.startsWith("http")) {
+        console.error("❌ Invalid URL provided:", url);
+        return null;
+    }
     
     const browser = await getBrowserInstance();
     const page = await browser.newPage();
@@ -45,23 +50,20 @@ const  scrapeAllText = async (url, divSelector) => {
 
         const divText = await page.evaluate((selector) => {
             const targetDiv = document.querySelector(selector);
-            return targetDiv ? targetDiv.innerText.replace(/\s+/g, ' ').trim() : null;
+            return targetDiv ? targetDiv.innerText.replace(/\s+/g, ' ').trim() : "No text found";
         }, divSelector);
 
         console.log("✅ Extracted text content:", divText ? divText.substring(0, 200) : "No text found");
-
-        await page.close();
-        await browser.close();
-
+    
         return divText;
     } catch (error) {
         console.error(`❌ Error scraping ${url}: ${error.message}`);
+        return null;
+    } finally {
         await page.close();
         await browser.close();
-        return null;
     }
 };
-
 
 app.post("/scrape", async (req, res) => {
     const { url } = req.body;
