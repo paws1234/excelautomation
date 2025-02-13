@@ -18,7 +18,8 @@ puppeteer.use(StealthPlugin());
 let browser;
 
 const getBrowserInstance = async () => {
-    if (!browser) {
+    if (!browser || !browser.isConnected()) {
+        console.warn("⚠️ Browser instance is closed. Restarting...");
         browser = await puppeteer.launch({
             headless: "new",
             args: [
@@ -32,7 +33,8 @@ const getBrowserInstance = async () => {
     }
     return browser;
 };
-  const scrapeAllText = async (url) => {
+
+const scrapeAllText = async (url) => {
     const divSelector = ".index-module_foldText_TFDUn .index-module_text_HePJ3 .index-module_ellipsisText_pYRbE .can-select.index-module_sourceTitle_TuTtw";
     console.log("🔍 Scraping all text content from div:", divSelector, "at", url);
     
@@ -41,13 +43,14 @@ const getBrowserInstance = async () => {
         return null;
     }
     
-    const browser = await getBrowserInstance();
-    const page = await browser.newPage();
-
+    let browser;
+    let page;
     try {
-        await page.goto(url, { waitUntil: "load", timeout: 1000000 });
-        //await page.goto(url, { waitUntil: "domcontentloaded", timeout: 1000000 });
-        await page.waitForSelector(divSelector, { timeout: 100000 });
+        browser = await getBrowserInstance();
+        page = await browser.newPage();
+
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 100000 });
+        await page.waitForSelector(divSelector, { timeout: 10000 });
 
         const divText = await page.evaluate((selector) => {
             const targetDiv = document.querySelector(selector);
@@ -61,10 +64,10 @@ const getBrowserInstance = async () => {
         console.error(`❌ Error scraping ${url}: ${error.message}`);
         return null;
     } finally {
-        await page.close();
-        await browser.close();
+        if (page) await page.close();
     }
 };
+
 
 app.post("/scrape", async (req, res) => {
     const { url } = req.body;
