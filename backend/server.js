@@ -1,38 +1,21 @@
 require("dotenv").config();
 const express = require("express");
-const multer = require("multer");
+const puppeteer = require("puppeteer-extra");
 const cors = require("cors");
-const fs = require("fs");
-const xlsx = require("xlsx");
-const path = require("path");
-const axios = require("axios");
-//const puppeteer = require("puppeteer");
-const puppeteer = require("puppeteer-extra"); 
-const cloudinary = require("cloudinary").v2;
-const ProgressBar = require("progress");
-const upload = require('multer')({ dest: 'uploads/' });
 const app = express();
+
 app.use(cors({
     origin: "*", 
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"], 
 }));
 
-
 app.use(express.json());
 
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
 const StealthPlugin = require("puppeteer-extra-plugin-stealth");
-
 puppeteer.use(StealthPlugin());
 
-
-let browser; 
+let browser;
 
 const getBrowserInstance = async () => {
     if (!browser) {
@@ -50,27 +33,8 @@ const getBrowserInstance = async () => {
     return browser;
 };
 
-const scrollPage = async (page) => {
-    await page.evaluate(async () => {
-        const distance = 1000;  
-        const delay = 2000;  
-
-        while (true) {
-            window.scrollBy(0, distance);  
-            await new Promise((resolve) => setTimeout(resolve, delay)); 
-
-            const scrollHeight = document.documentElement.scrollHeight;
-            const currentScroll = window.scrollY + window.innerHeight;
-
-            if (currentScroll >= scrollHeight) {
-                break;  
-            }
-        }
-    });
-};
-
-const scrapeImage = async (url) => {
-    console.log("🔍 Processing:", url);
+const scrapeAllText = async (url) => {
+    console.log("🔍 Scraping all text content from:", url);
 
     const browser = await getBrowserInstance();
     const page = await browser.newPage();
@@ -78,248 +42,48 @@ const scrapeImage = async (url) => {
     try {
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 100000 });
 
-        if (typeof scrollPage === "function") {
-            await scrollPage(page);
-        }
+        await page.waitForSelector("body", { timeout: 10000 });
 
-        await page.setRequestInterception(true);
-
-        page.on("request", (request) => {
-            if (request.url().includes("xcimg.szwego.com")) {
-                console.log("✅ Found image URL:", request.url());
-            }
-            request.continue();
+        const allText = await page.evaluate(() => {
+            return document.body.innerText; 
         });
 
-        await page.waitForFunction(
-            'Array.from(document.querySelectorAll("*")).some(element => (' +
-            'element.src && element.src.includes("xcimg.szwego.com")) || ' +
-            '(element.href && element.href.includes("xcimg.szwego.com")));',
-            { timeout: 10000 }
-        );
-
-        const imageUrls = await page.evaluate(() => {
-            const urlPattern = /https:\/\/xcimg\.szwego\.com\/.*\.(jpg|jpeg|png|gif)\?imageMogr2/;
-            const urls = [];
-
-            document.querySelectorAll("*").forEach((element) => {
-                if (element.src && urlPattern.test(element.src)) {
-                    urls.push(element.src);
-                }
-                if (element.href && urlPattern.test(element.href)) {
-                    urls.push(element.href);
-                }
-            });
-
-            return urls.slice(0, 3);
-        });
-
-        console.log("✅ Found image URLs:", imageUrls);
-
-        const validImageUrls = (await Promise.all(
-            imageUrls.map(async (imageUrl) => {
-                try {
-                    const response = await axios.head(imageUrl, { timeout: 5000 });
-                    return response.status === 200 ? imageUrl : null;
-                } catch {
-                    return null;
-                }
-            })
-        )).filter(Boolean);
-
-        console.log("✅ Valid image URLs:", validImageUrls);
+        console.log("✅ Extracted all text content:", allText.substring(0, 200)); 
 
         await page.close();
-        await browser.close(); // Close the browser after execution
+        await browser.close(); 
 
-        return validImageUrls;
+        return allText;
     } catch (error) {
-        console.error(`❌ Error processing ${url}: ${error.message}`);
+        console.error(`❌ Error scraping ${url}: ${error.message}`);
 
         await page.close();
-        await browser.close(); // Ensure the browser is closed in case of an error
+        await browser.close();
 
-        return [];
-    }
-};
-
-const uploadToCloudinary = async (filePath) => {
-    try {
-        const result = await cloudinary.uploader.upload(filePath, { folder: "scraped_images" });
-        console.log("📤 Cloudinary upload successful:", result.secure_url);
-        return result.secure_url;
-    } catch (error) {
-        console.log(`❌ Cloudinary upload failed: ${error.message}`);
         return null;
     }
 };
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.post("/scrape", async (req, res) => {
+    const { url } = req.body;
 
-app.post("/upload", upload.single("file"), async (req, res) => {
-    
-    if (!req.file) return res.status(400).json({ error: "No file uploaded!" });
-
-    console.log("File uploaded:", req.file);
-    const filePath = req.file.path;
-
-    const workbook = xlsx.readFile(filePath, { cellStyles: true });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-
-    let data = xlsx.utils.sheet_to_json(worksheet, { defval: "" }); 
-    console.log(`📦 Total links found: ${data.length}\n`);
-
-    const limit = parseInt(req.query.limit, 10) || data.length;
-
-    let newData = [];
-
-    // Process links sequentially
-    for (const [index, row] of data.entries()) {
-        if (!row.LINKS || !row.LINKS.trim()) {
-            console.log(`❌ Empty or invalid link found at row ${index + 1}`);
-            continue;
-        }
-
-        console.log(`🔍 Processing link ${index + 1}: ${row.LINKS}`);
-
-        try {
-            const imageUrls = await scrapeImage(row.LINKS);
-
-            if (imageUrls.length > 0) {
-                const cloudinaryUrls = [];
-                for (let imageUrl of imageUrls) {
-                    const cloudinaryUrl = await uploadToCloudinary(imageUrl);
-                    cloudinaryUrls.push(cloudinaryUrl ? cloudinaryUrl : 'Cloudinary Upload Failed');
-                }
-
-                let newRow = { ...row, 'Image Src': cloudinaryUrls[0] };
-                newData.push(newRow);
-
-                for (let j = 1; j < cloudinaryUrls.length; j++) {
-                    let newRowForAdditionalImage = { ...row, 'Image Src': cloudinaryUrls[j] };
-                    newData.push(newRowForAdditionalImage);
-                }
-            } else {
-                let newRow = { ...row, 'Image Src': 'No Image Found' };
-                newData.push(newRow);
-            }
-        } catch (err) {
-            console.error(`Error processing link at row ${index + 1}:`, err);
-            let newRow = { ...row, 'Image Src': 'Error occurred' };
-            newData.push(newRow);
-        }
+    if (!url) {
+        return res.status(400).json({ error: "URL is required!" });
     }
 
-    // Writing updated data to the new worksheet
-    const newWorksheet = xlsx.utils.json_to_sheet(newData, { origin: "A1" });
+    try {
+        const allText = await scrapeAllText(url);
 
-    Object.keys(newWorksheet).forEach(cell => {
-        if (!cell.startsWith("!")) {
-            worksheet[cell] = newWorksheet[cell];
+        if (allText) {
+            res.json({ allText });
+        } else {
+            res.status(404).json({ error: "Text content not found" });
         }
-    });
-
-    const outputFilePath = `uploads/processed_${Date.now()}.xlsx`;
-    console.log(`⚡ Writing the workbook to ${outputFilePath}`);
-
-    xlsx.writeFile(workbook, outputFilePath);
-    console.log(`✅ File successfully written to ${outputFilePath}`);
-
-    // Delete the uploaded file after processing
-    fs.unlink(filePath, (err) => {
-        if (err) {
-            console.error('Error deleting the original file:', err);
-        }
-    });
-
-    const processedFileName = outputFilePath.split('/').pop(); 
-    res.json({ fileName: processedFileName });
+    } catch (err) {
+        console.error("❌ Error during scrape:", err);
+        res.status(500).json({ error: "Failed to scrape the content" });
+    }
 });
-//will keep this code commented out for now because the code above fixes the issue of limited ram resources on render server
-/*app.post("/upload", upload.single("file"), async (req, res) => {
-    if (!req.file) return res.status(400).json({ error: "No file uploaded!" });
-
-    console.log("File uploaded:", req.file);
-    const filePath = req.file.path;
-
-    const workbook = xlsx.readFile(filePath, { cellStyles: true });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-
-    let data = xlsx.utils.sheet_to_json(worksheet, { defval: "" }); 
-    //console.log('Parsed data:', data); 
-    console.log(`📦 Total links found: ${data.length}\n`);
-
-    const limit = parseInt(req.query.limit, 10) || data.length;
-    //console.log(`⚡ Processing ${limit} out of ${data.length} links...\n`);
-
-    let newData = [];
-
-    const promises = data.slice().map(async (row, index) => {
-        if (!row.LINKS || !row.LINKS.trim()) {
-            //console.log(`❌ Empty or invalid link found at row ${index + 1}`);
-            return;  
-        }
-
-        console.log(`🔍 Processing link ${index + 1}: ${row.LINKS}`);
-
-        try {
-            const imageUrls = await scrapeImage(row.LINKS);
-
-            if (imageUrls.length > 0) {
-                const cloudinaryUrls = await Promise.all(imageUrls.map(async (imageUrl) => {
-                    const cloudinaryUrl = await uploadToCloudinary(imageUrl);
-                    return cloudinaryUrl ? cloudinaryUrl : 'Cloudinary Upload Failed';
-                }));
-
-                let newRow = { ...row, 'Image Src': cloudinaryUrls[0] };
-                newData.push(newRow);
-
-                for (let j = 1; j < cloudinaryUrls.length; j++) {
-                    let newRowForAdditionalImage = { ...row, 'Image Src': cloudinaryUrls[j] };
-                    newData.push(newRowForAdditionalImage);
-                }
-            } else {
-                let newRow = { ...row, 'Image Src': 'No Image Found' };
-                newData.push(newRow);
-            }
-        } catch (err) {
-            console.error(`Error processing link at row ${index + 1}:`, err);
-            let newRow = { ...row, 'Image Src': 'Error occurred' };
-            newData.push(newRow);
-        }
-    });
-
-    await Promise.all(promises);
-
-    const newWorksheet = xlsx.utils.json_to_sheet(newData, { origin: "A1" });
-
-    Object.keys(newWorksheet).forEach(cell => {
-        if (!cell.startsWith("!")) {
-            worksheet[cell] = newWorksheet[cell];
-        }
-    });
-
-    const outputFilePath = `uploads/processed_${Date.now()}.xlsx`;
-    console.log(`⚡ Writing the workbook to ${outputFilePath}`);
-
-    xlsx.writeFile(workbook, outputFilePath);
-    console.log(`✅ File successfully written to ${outputFilePath}`);
-
-    fs.unlink(filePath, (err) => {
-        if (err) {
-            console.error('Error deleting the original file:', err);
-        }
-    });
-
-    const processedFileName = outputFilePath.split('/').pop(); 
-    res.json({ fileName: processedFileName });
-
-});
-*/
-
-
-
 
 app.listen(5000, () => console.log("✅ Server running on http://localhost:5000"));
+
