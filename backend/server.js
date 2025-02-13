@@ -45,7 +45,8 @@ const getBrowserInstance = async () => {
     const page = await browser.newPage();
 
     try {
-        await page.goto(url, { waitUntil: "loaded", timeout: 1000000 });
+        await page.goto(url, { waitUntil: "load", timeout: 1000000 });
+        //await page.goto(url, { waitUntil: "domcontentloaded", timeout: 1000000 });
         await page.waitForSelector(divSelector, { timeout: 100000 });
 
         const divText = await page.evaluate((selector) => {
